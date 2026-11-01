@@ -1,0 +1,17 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import auth from './routes/auth.js';
+import users from './routes/users.js';
+import leaves from './routes/leaves.js';
+import attendance from './routes/attendance.js';
+import announcements from './routes/announcements.js';
+import dashboard from './routes/dashboard.js';
+const app=express();
+app.use(cors({origin:true}));
+app.use(express.json());
+app.get('/api/health',(req,res)=>res.json({ok:true,service:'StaffSync API'}));
+app.use('/api/auth',auth);app.use('/api/users',users);app.use('/api/leaves',leaves);app.use('/api/attendance',attendance);app.use('/api/announcements',announcements);app.use('/api/dashboard',dashboard);
+const port=process.env.PORT||5000;
+mongoose.connect(process.env.MONGO_URI).then(()=>{app.listen(port,()=>console.log(`StaffSync API running on ${port}`));}).catch(err=>{console.error('MongoDB connection failed:',err.message);process.exit(1);});
