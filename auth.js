@@ -1,13 +1,11 @@
+import express from 'express';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-export const protect = async (req,res,next)=>{
-  try{
-    const token=(req.headers.authorization||'').replace('Bearer ','');
-    if(!token) return res.status(401).json({message:'Authentication required'});
-    const decoded=jwt.verify(token,process.env.JWT_SECRET);
-    req.user=await User.findById(decoded.id).select('-password');
-    if(!req.user) return res.status(401).json({message:'User not found'});
-    next();
-  }catch(e){res.status(401).json({message:'Invalid or expired token'});}
-};
-export const allowRoles=(...roles)=>(req,res,next)=>roles.includes(req.user.role)?next():res.status(403).json({message:'Access denied'});
+import {protect} from '../middleware/auth.js';
+const router=express.Router();
+const tokenFor=(id)=>jwt.sign({id},process.env.JWT_SECRET,{expiresIn:'7d'});
+router.post('/login',async(req,res)=>{try{const {email,password}=req.body;const user=await User.findOne({email});if(!user||!(await bcrypt.compare(password,user.password)))return res.status(401).json({message:'Invalid email or password'});res.json({token:tokenFor(user._id),user:{id:user._id,name:user.name,email:user.email,role:user.role,department:user.department,position:user.position}});}catch(e){res.status(500).json({message:e.message});}});
+router.post('/register',async(req,res)=>{try{const {name,email,password,department,position}=req.body;if(!name||!email||!password)return res.status(400).json({message:'Name, email and password are required'});if(await User.findOne({email}))return res.status(409).json({message:'Email already exists'});const hash=await bcrypt.hash(password,10);const user=await User.create({name,email,password:hash,department,position,role:'employee'});res.status(201).json({message:'Registered successfully',token:tokenFor(user._id),user:{id:user._id,name:user.name,email:user.email,role:user.role,department:user.department,position:user.position}});}catch(e){res.status(500).json({message:e.message});}});
+router.get('/me',protect,(req,res)=>res.json(req.user));
+export default router;
